@@ -1,4 +1,4 @@
-import { Home, Plus, TrendingDown, Menu } from "lucide-react";
+import { Home, Plus, TrendingDown, Menu, Package, Milk, FileText, Download } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,10 @@ const navItems = [
   { to: "/", icon: Home, label: "Dashboard" },
   { to: "/add-sale", icon: Plus, label: "Add Sale" },
   { to: "/add-expense", icon: TrendingDown, label: "Add Expense" },
+  { to: "/stock", icon: Package, label: "Stock" },
+  { to: "/milk-tracker", icon: Milk, label: "Milk Tracker" },
+  { to: "/pending-bills", icon: FileText, label: "Pending Bills" },
+  { to: "/reports", icon: Download, label: "Reports" },
 ];
 
 export const Navigation = () => {

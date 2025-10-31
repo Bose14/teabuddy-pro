@@ -44,6 +44,60 @@ export type Database = {
         }
         Relationships: []
       }
+      milk_usage: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          purchased: number
+          remaining: number
+          used: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          purchased?: number
+          remaining?: number
+          used?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          purchased?: number
+          remaining?: number
+          used?: number
+        }
+        Relationships: []
+      }
+      pending_bills: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          status: string
+          vendor_name: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          status?: string
+          vendor_name: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          status?: string
+          vendor_name?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           amount: number
@@ -74,6 +128,39 @@ export type Database = {
           payment_mode?: string
           price_per_unit?: number
           quantity?: number
+        }
+        Relationships: []
+      }
+      stock: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          item_name: string
+          opening_stock: number
+          remaining: number
+          stock_in: number
+          stock_out: number
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          item_name: string
+          opening_stock?: number
+          remaining?: number
+          stock_in?: number
+          stock_out?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          item_name?: string
+          opening_stock?: number
+          remaining?: number
+          stock_in?: number
+          stock_out?: number
         }
         Relationships: []
       }

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsCard } from "@/components/StatsCard";
-import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
-import { format, startOfMonth, startOfDay } from "date-fns";
+import { TrendingUp, TrendingDown, Wallet, Milk } from "lucide-react";
+import { format, startOfMonth } from "date-fns";
+import { Card } from "@/components/ui/card";
 
 export default function Dashboard() {
   const { data: salesData } = useQuery({
@@ -22,6 +23,18 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expenses")
+        .select("*")
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: milkData } = useQuery({
+    queryKey: ["milk_usage"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("milk_usage")
         .select("*")
         .order("date", { ascending: false });
       if (error) throw error;
@@ -63,11 +76,23 @@ export default function Dashboard() {
       (salesData?.filter(s => s.payment_mode === 'PhonePe').reduce((sum, s) => sum + Number(s.amount), 0) || 0) -
       (expensesData?.filter(e => e.mode === 'PhonePe').reduce((sum, e) => sum + Number(e.amount), 0) || 0);
 
+    const todayMilk = milkData?.find(m => m.date === today);
+    const monthMilk = milkData?.filter(m => m.date >= monthStart) || [];
+    const monthMilkPurchased = monthMilk.reduce((sum, m) => sum + Number(m.purchased), 0);
+    const monthMilkUsed = monthMilk.reduce((sum, m) => sum + Number(m.used), 0);
+
     return {
       today: { sales: todaySalesTotal, expenses: todayExpensesTotal, profit: todayProfit },
       month: { sales: monthSalesTotal, expenses: monthExpensesTotal, profit: monthProfit },
       total: { sales: totalSales, expenses: totalExpenses, profit: totalProfit },
       payment: { cash: cashInHand, gpay, phonePe, online: gpay + phonePe },
+      milk: {
+        todayPurchased: todayMilk ? Number(todayMilk.purchased) : 0,
+        todayUsed: todayMilk ? Number(todayMilk.used) : 0,
+        remaining: todayMilk ? Number(todayMilk.remaining) : 0,
+        monthPurchased: monthMilkPurchased,
+        monthUsed: monthMilkUsed,
+      },
     };
   };
 
@@ -171,6 +196,38 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground font-medium">Total Online</p>
               <p className="text-2xl font-bold mt-2">₹{stats.payment.online.toFixed(2)}</p>
             </div>
+          </div>
+        </section>
+
+        {/* Milk Summary */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Milk className="h-5 w-5 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold">Milk Summary</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card className="p-4 border-2">
+              <p className="text-xs text-muted-foreground font-medium">Today Purchased</p>
+              <p className="text-xl font-bold mt-1 text-primary">{stats.milk.todayPurchased.toFixed(2)} L</p>
+            </Card>
+            <Card className="p-4 border-2">
+              <p className="text-xs text-muted-foreground font-medium">Today Used</p>
+              <p className="text-xl font-bold mt-1 text-destructive">{stats.milk.todayUsed.toFixed(2)} L</p>
+            </Card>
+            <Card className="p-4 border-2">
+              <p className="text-xs text-muted-foreground font-medium">Remaining</p>
+              <p className="text-xl font-bold mt-1 text-success">{stats.milk.remaining.toFixed(2)} L</p>
+            </Card>
+            <Card className="p-4 border-2">
+              <p className="text-xs text-muted-foreground font-medium">Month Purchased</p>
+              <p className="text-xl font-bold mt-1">{stats.milk.monthPurchased.toFixed(2)} L</p>
+            </Card>
+            <Card className="p-4 border-2">
+              <p className="text-xs text-muted-foreground font-medium">Month Used</p>
+              <p className="text-xl font-bold mt-1">{stats.milk.monthUsed.toFixed(2)} L</p>
+            </Card>
           </div>
         </section>
       </div>
