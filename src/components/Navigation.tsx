@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Home, Calendar, TrendingDown, Menu, Package, Users, FileText } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const navItems = [
 
 export const Navigation = () => {
   const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
@@ -25,7 +27,7 @@ export const Navigation = () => {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b z-50">
         <div className="flex items-center justify-between p-4">
           <h1 className="text-lg font-bold text-primary">Tea Shop Manager</h1>
-          <Sheet>
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
@@ -34,7 +36,7 @@ export const Navigation = () => {
             <SheetContent side="right" className="w-64">
               <nav className="flex flex-col gap-2 mt-8">
                 {navItems.map((item) => (
-                  <Link key={item.to} to={item.to}>
+                  <Link key={item.to} to={item.to} onClick={() => setIsOpen(false)}>
                     <Button
                       variant={location.pathname === item.to ? "default" : "ghost"}
                       className="w-full justify-start gap-2"
