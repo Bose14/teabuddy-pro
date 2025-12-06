@@ -14,155 +14,264 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_cash_flow: {
+        Row: {
+          cash_expenses: number
+          cash_sales: number
+          closing_cash: number
+          created_at: string
+          daily_profit: number | null
+          daily_sales: number | null
+          date: string
+          expected_closing_cash: number | null
+          id: string
+          notes: string | null
+          online_expenses: number
+          online_sales: number
+          total_expenses: number
+          updated_at: string
+          yesterday_cash: number
+        }
+        Insert: {
+          cash_expenses?: number
+          cash_sales?: number
+          closing_cash?: number
+          created_at?: string
+          daily_profit?: number | null
+          daily_sales?: number | null
+          date?: string
+          expected_closing_cash?: number | null
+          id?: string
+          notes?: string | null
+          online_expenses?: number
+          online_sales?: number
+          total_expenses?: number
+          updated_at?: string
+          yesterday_cash?: number
+        }
+        Update: {
+          cash_expenses?: number
+          cash_sales?: number
+          closing_cash?: number
+          created_at?: string
+          daily_profit?: number | null
+          daily_sales?: number | null
+          date?: string
+          expected_closing_cash?: number | null
+          id?: string
+          notes?: string | null
+          online_expenses?: number
+          online_sales?: number
+          total_expenses?: number
+          updated_at?: string
+          yesterday_cash?: number
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          advance_given: number
+          created_at: string
+          id: string
+          is_active: boolean
+          monthly_salary: number
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          advance_given?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          monthly_salary?: number
+          name: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          advance_given?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          monthly_salary?: number
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
           created_at: string
           date: string
+          employee_id: string | null
+          expense_type: string
           id: string
-          mode: string
-          status: string
-          title: string
+          is_salary_payment: boolean | null
+          notes: string | null
+          payment_method: string
+          vendor_name: string | null
         }
         Insert: {
           amount: number
           created_at?: string
           date?: string
+          employee_id?: string | null
+          expense_type: string
           id?: string
-          mode: string
-          status?: string
-          title: string
+          is_salary_payment?: boolean | null
+          notes?: string | null
+          payment_method?: string
+          vendor_name?: string | null
         }
         Update: {
           amount?: number
           created_at?: string
           date?: string
+          employee_id?: string | null
+          expense_type?: string
           id?: string
-          mode?: string
-          status?: string
-          title?: string
+          is_salary_payment?: boolean | null
+          notes?: string | null
+          payment_method?: string
+          vendor_name?: string | null
         }
         Relationships: []
       }
-      milk_usage: {
-        Row: {
-          created_at: string
-          date: string
-          id: string
-          purchased: number
-          remaining: number
-          used: number
-        }
-        Insert: {
-          created_at?: string
-          date: string
-          id?: string
-          purchased?: number
-          remaining?: number
-          used?: number
-        }
-        Update: {
-          created_at?: string
-          date?: string
-          id?: string
-          purchased?: number
-          remaining?: number
-          used?: number
-        }
-        Relationships: []
-      }
-      pending_bills: {
+      salary_payments: {
         Row: {
           amount: number
           created_at: string
-          due_date: string
+          employee_id: string
           id: string
-          status: string
-          vendor_name: string
+          month: string
+          notes: string | null
+          payment_method: string
+          payment_type: string
+          year: number
         }
         Insert: {
           amount: number
           created_at?: string
-          due_date: string
+          employee_id: string
           id?: string
-          status?: string
-          vendor_name: string
+          month: string
+          notes?: string | null
+          payment_method?: string
+          payment_type?: string
+          year: number
         }
         Update: {
           amount?: number
           created_at?: string
-          due_date?: string
+          employee_id?: string
           id?: string
-          status?: string
-          vendor_name?: string
+          month?: string
+          notes?: string | null
+          payment_method?: string
+          payment_type?: string
+          year?: number
         }
-        Relationships: []
-      }
-      sales: {
-        Row: {
-          amount: number
-          created_at: string
-          date: string
-          id: string
-          item_name: string
-          payment_mode: string
-          price_per_unit: number
-          quantity: number
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          date?: string
-          id?: string
-          item_name: string
-          payment_mode: string
-          price_per_unit: number
-          quantity: number
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          date?: string
-          id?: string
-          item_name?: string
-          payment_mode?: string
-          price_per_unit?: number
-          quantity?: number
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "salary_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock: {
         Row: {
+          category: string
+          closing_stock: number | null
           created_at: string
-          date: string
+          expiry_date: string | null
           id: string
-          item_name: string
+          low_stock_threshold: number
           opening_stock: number
-          remaining: number
-          stock_in: number
-          stock_out: number
+          product_name: string
+          purchase_price: number
+          purchased_qty: number
+          selling_price: number
+          unit: string
+          updated_at: string
+          used_sold_qty: number
+          vendor: string | null
+        }
+        Insert: {
+          category: string
+          closing_stock?: number | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          low_stock_threshold?: number
+          opening_stock?: number
+          product_name: string
+          purchase_price?: number
+          purchased_qty?: number
+          selling_price?: number
+          unit?: string
+          updated_at?: string
+          used_sold_qty?: number
+          vendor?: string | null
+        }
+        Update: {
+          category?: string
+          closing_stock?: number | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          low_stock_threshold?: number
+          opening_stock?: number
+          product_name?: string
+          purchase_price?: number
+          purchased_qty?: number
+          selling_price?: number
+          unit?: string
+          updated_at?: string
+          used_sold_qty?: number
+          vendor?: string | null
+        }
+        Relationships: []
+      }
+      stock_transactions: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          quantity: number
+          stock_id: string
+          transaction_type: string
         }
         Insert: {
           created_at?: string
-          date?: string
           id?: string
-          item_name: string
-          opening_stock?: number
-          remaining?: number
-          stock_in?: number
-          stock_out?: number
+          notes?: string | null
+          quantity: number
+          stock_id: string
+          transaction_type: string
         }
         Update: {
           created_at?: string
-          date?: string
           id?: string
-          item_name?: string
-          opening_stock?: number
-          remaining?: number
-          stock_in?: number
-          stock_out?: number
+          notes?: string | null
+          quantity?: number
+          stock_id?: string
+          transaction_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stock_transactions_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stock"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -172,7 +281,18 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      expense_type:
+        | "Milk"
+        | "Oil"
+        | "Sugar"
+        | "Vegetables"
+        | "Salary"
+        | "Rent"
+        | "Electricity"
+        | "Gas"
+        | "Others"
+      payment_method: "Cash" | "Online"
+      stock_category: "Raw Materials" | "Resale Items"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -299,6 +419,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      expense_type: [
+        "Milk",
+        "Oil",
+        "Sugar",
+        "Vegetables",
+        "Salary",
+        "Rent",
+        "Electricity",
+        "Gas",
+        "Others",
+      ],
+      payment_method: ["Cash", "Online"],
+      stock_category: ["Raw Materials", "Resale Items"],
+    },
   },
 } as const
