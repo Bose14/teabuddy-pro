@@ -6,6 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -99,13 +105,28 @@ export default function Stock() {
     });
   };
 
-  const rawMaterials = stock?.filter(s => s.category === "Raw Materials") || [];
-  const resaleItems = stock?.filter(s => s.category === "Resale Items") || [];
+  // Group stock by category
+  const categories = [
+    { name: "Tea/Coffee Products", items: stock?.filter(s => s.category === "Tea/Coffee Products") || [] },
+    { name: "Malligai Raw Material", items: stock?.filter(s => s.category === "Malligai Raw Material") || [] },
+    { name: "Vegetables", items: stock?.filter(s => s.category === "Vegetables") || [] },
+    { name: "Cakes", items: stock?.filter(s => s.category === "Cakes") || [] },
+    { name: "Biscuits", items: stock?.filter(s => s.category === "Biscuits") || [] },
+    { name: "Ice cream", items: stock?.filter(s => s.category === "Ice cream") || [] },
+    { name: "Juice", items: stock?.filter(s => s.category === "Juice") || [] },
+    { name: "Gas Cylinders", items: stock?.filter(s => s.category === "Gas Cylinders") || [] },
+    { name: "Others", items: stock?.filter(s => s.category === "Others") || [] },
+  ];
+
+  // Helper to check if category has low stock items
+  const hasLowStockInCategory = (items: any[]) => {
+    return items.some(item => item.closing_stock <= item.low_stock_threshold);
+  };
 
   return (
-    <div className="lg:ml-64 p-4 lg:p-6 space-y-6 safe-bottom">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Stock Management</h1>
+    <div className="lg:ml-64 p-4 mt-16 lg:p-6 space-y-6 safe-bottom">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Stock Management</h1>
         
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
@@ -126,8 +147,15 @@ export default function Stock() {
                     <SelectValue placeholder="Select category..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Raw Materials">Raw Materials</SelectItem>
-                    <SelectItem value="Resale Items">Resale Items</SelectItem>
+                    <SelectItem value="Tea/Coffee Products">Tea/Coffee Products</SelectItem>
+                    <SelectItem value="Malligai Raw Material">Malligai Raw Material</SelectItem>
+                    <SelectItem value="Vegetables">Vegetables</SelectItem>
+                    <SelectItem value="Cakes">Cakes</SelectItem>
+                    <SelectItem value="Biscuits">Biscuits</SelectItem>
+                    <SelectItem value="Ice cream">Ice cream</SelectItem>
+                    <SelectItem value="Juice">Juice</SelectItem>
+                    <SelectItem value="Gas Cylinders">Gas Cylinders</SelectItem>
+                    <SelectItem value="Others">Others</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -244,61 +272,53 @@ export default function Stock() {
         </div>
       )}
 
-      {/* Raw Materials */}
+      {/* Stock Categories Accordion */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Raw Materials
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {rawMaterials.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No raw materials added</p>
-          ) : (
-            <div className="space-y-2">
-              {rawMaterials.map((item) => (
-                <StockItem
-                  key={item.id}
-                  item={item}
-                  onUpdate={(type) => {
-                    setSelectedStock(item.id);
-                    setUpdateType(type);
-                    setShowUpdateDialog(true);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Resale Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Resale Items
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {resaleItems.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No resale items added</p>
-          ) : (
-            <div className="space-y-2">
-              {resaleItems.map((item) => (
-                <StockItem
-                  key={item.id}
-                  item={item}
-                  onUpdate={(type) => {
-                    setSelectedStock(item.id);
-                    setUpdateType(type);
-                    setShowUpdateDialog(true);
-                  }}
-                />
-              ))}
-            </div>
-          )}
+        <CardContent className="pt-6">
+          <Accordion type="multiple" className="w-full">
+            {categories.map((category) => (
+              <AccordionItem key={category.name} value={category.name}>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      <span className="font-semibold">{category.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {hasLowStockInCategory(category.items) && (
+                        <Badge variant="destructive" className="text-xs">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Low Stock
+                        </Badge>
+                      )}
+                      <Badge variant="secondary" className="text-xs">
+                        {category.items.length} {category.items.length === 1 ? 'item' : 'items'}
+                      </Badge>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {category.items.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">No items in this category</p>
+                  ) : (
+                    <div className="space-y-2 pt-2">
+                      {category.items.map((item) => (
+                        <StockItem
+                          key={item.id}
+                          item={item}
+                          onUpdate={(type) => {
+                            setSelectedStock(item.id);
+                            setUpdateType(type);
+                            setShowUpdateDialog(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </CardContent>
       </Card>
 

@@ -18,31 +18,91 @@ export const EXPENSE_TYPES = [
 export const PAYMENT_METHODS = ["Cash", "Online"] as const;
 
 export const STOCK_CATEGORIES = {
-  "Raw Materials": [
-    "Milk",
+  "Tea/Coffee Products": [
     "Tea Powder",
     "Coffee Powder",
-    "Sugar",
-    "Oil",
-    "Flour",
-    "Vegetables",
-    "Gas Cylinder",
-    "Cups",
-    "Tissues"
+    "Tea Bags",
+    "Coffee Beans",
+    "Green Tea",
+    "Masala Tea Mix"
   ],
-  "Resale Items": [
-    "Biscuits - Parle G",
-    "Biscuits - Good Day",
-    "Biscuits - Marie",
-    "Cakes",
-    "Ice Cream",
-    "Cool Drinks - Pepsi",
-    "Cool Drinks - Coca Cola",
-    "Cool Drinks - Sprite",
-    "Chips",
-    "Chocolates"
+  "Malligai Raw Material": [
+    "Milk",
+    "Sugar",
+    "Condensed Milk",
+    "Milk Powder"
+  ],
+  "Vegetables": [
+    "Onions",
+    "Potatoes",
+    "Tomatoes",
+    "Curry Leaves",
+    "Coriander",
+    "Green Chillies"
+  ],
+  "Cakes": [
+    "Banana Cake",
+    "Tea Cake",
+    "Plum Cake",
+    "Chocolate Cake",
+    "Vanilla Cake"
+  ],
+  "Biscuits": [
+    "Parle G",
+    "Good Day",
+    "Marie",
+    "Bourbon",
+    "Tiger",
+    "Cream Biscuits"
+  ],
+  "Ice cream": [
+    "Milky Mist - Vanilla",
+    "Milky Mist - Chocolate",
+    "Milky Mist - Strawberry",
+    "Arun Ice Cream",
+    "Cornetto",
+    "Ice Candy"
+  ],
+  "Juice": [
+    "Frooti",
+    "Maaza",
+    "Real Juice",
+    "Slice",
+    "Tropicana"
+  ],
+  "Gas Cylinders": [
+    "LPG Cylinder - Full",
+    "LPG Cylinder - Empty",
+    "Gas Stove",
+    "Gas Regulator",
+    "Gas Pipe/Tube"
+  ],
+  "Others": [
+    "Paper Cups",
+    "Plastic Cups",
+    "Spoons",
+    "Napkins",
+    "Tissue Paper",
+    "Cleaning Supplies",
+    "Disposable Plates",
+    "Carry Bags",
+    "Straws",
+    "Containers"
   ]
 } as const;
+
+// Category names array for dropdowns
+export const STOCK_CATEGORY_NAMES = [
+  "Tea/Coffee Products",
+  "Malligai Raw Material",
+  "Vegetables",
+  "Cakes",
+  "Biscuits",
+  "Ice cream",
+  "Juice",
+  "Gas Cylinders",
+  "Others"
+] as const;
 
 export const STOCK_UNITS = [
   "kg",

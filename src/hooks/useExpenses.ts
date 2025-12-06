@@ -33,6 +33,9 @@ export function useExpenses(startDate?: string, endDate?: string) {
       if (error) throw error;
       return data as Expense[];
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -87,6 +90,9 @@ export function useExpenseStats() {
         ).sort((a, b) => b[1] - a[1]),
       };
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -151,11 +157,11 @@ export function useAddExpense() {
       
       if (upsertError) throw upsertError;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      await queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast.success("Expense added successfully!");
     },
     onError: (error) => {
@@ -169,17 +175,70 @@ export function useDeleteExpense() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // 1. Get the expense date before deleting (needed for sync)
+      // 1. Get the full expense details before deleting
       const { data: expenseToDelete, error: fetchError } = await supabase
         .from("expenses")
-        .select("date")
+        .select("*")
         .eq("id", id)
         .single();
       
       if (fetchError) throw fetchError;
       const expenseDate = expenseToDelete.date;
 
-      // 2. Delete the expense
+      // 2. If it's a salary payment, handle cascade deletion
+      if (expenseToDelete.is_salary_payment && expenseToDelete.employee_id) {
+        // 2a. Find the matching salary_payments record and get its details
+        const { data: salaryPayments, error: salaryQueryError } = await supabase
+          .from("salary_payments")
+          .select("*")
+          .eq("employee_id", expenseToDelete.employee_id)
+          .eq("amount", expenseToDelete.amount)
+          .order("created_at", { ascending: false })
+          .limit(5); // Get recent payments to match
+        
+        if (salaryQueryError) throw salaryQueryError;
+
+        // Find the best match by comparing timestamps (should be very close)
+        const expenseTime = new Date(expenseToDelete.created_at).getTime();
+        const matchingPayment = salaryPayments?.find(payment => {
+          const paymentTime = new Date(payment.created_at).getTime();
+          const timeDiff = Math.abs(expenseTime - paymentTime);
+          return timeDiff < 5000; // Within 5 seconds
+        });
+
+        if (matchingPayment) {
+          // 2b. Delete the salary_payments record
+          const { error: salaryDeleteError } = await supabase
+            .from("salary_payments")
+            .delete()
+            .eq("id", matchingPayment.id);
+          
+          if (salaryDeleteError) throw salaryDeleteError;
+
+          // 2c. If it was an advance, reverse it from employee's advance_given
+          if (matchingPayment.payment_type === "Advance") {
+            const { data: employee, error: employeeError } = await supabase
+              .from("employees")
+              .select("advance_given")
+              .eq("id", expenseToDelete.employee_id)
+              .single();
+            
+            if (employeeError) throw employeeError;
+            
+            if (employee) {
+              const newAdvance = Math.max(0, Number(employee.advance_given) - Number(expenseToDelete.amount));
+              const { error: updateError } = await supabase
+                .from("employees")
+                .update({ advance_given: newAdvance })
+                .eq("id", expenseToDelete.employee_id);
+              
+              if (updateError) throw updateError;
+            }
+          }
+        }
+      }
+
+      // 3. Delete the expense
       const { error: deleteError } = await supabase
         .from("expenses")
         .delete()
@@ -221,11 +280,13 @@ export function useDeleteExpense() {
       
       if (upsertError) throw upsertError;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      await queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
+      await queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
       toast.success("Expense deleted!");
     },
     onError: (error) => {

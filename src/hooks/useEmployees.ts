@@ -35,6 +35,9 @@ export function useEmployees() {
       if (error) throw error;
       return data as Employee[];
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -52,6 +55,9 @@ export function useSalaryPayments(employeeId?: string, month?: string, year?: nu
       if (error) throw error;
       return data as SalaryPayment[];
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -67,8 +73,8 @@ export function useAddEmployee() {
       const { error } = await supabase.from("employees").insert(data);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Employee added!");
     },
     onError: (error) => {
@@ -85,9 +91,31 @@ export function useUpdateEmployee() {
       const { error } = await supabase.from("employees").update(data).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Employee updated!");
+    },
+    onError: (error) => {
+      toast.error("Failed: " + error.message);
+    },
+  });
+}
+
+export function useDeleteEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Soft delete by setting is_active to false
+      const { error } = await supabase
+        .from("employees")
+        .update({ is_active: false })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employee removed!");
     },
     onError: (error) => {
       toast.error("Failed: " + error.message);
@@ -108,7 +136,9 @@ export function usePaySalary() {
       year: number;
       notes?: string;
     }) => {
-      // Add salary payment record
+      const today = new Date().toISOString().split("T")[0];
+
+      // 1. Add salary payment record
       const { error: paymentError } = await supabase.from("salary_payments").insert({
         employee_id: data.employee_id,
         amount: data.amount,
@@ -120,9 +150,9 @@ export function usePaySalary() {
       });
       if (paymentError) throw paymentError;
 
-      // Add as expense
+      // 2. Add as expense
       const { error: expenseError } = await supabase.from("expenses").insert({
-        date: new Date().toISOString().split("T")[0],
+        date: today,
         expense_type: "Salary",
         amount: data.amount,
         payment_method: data.payment_method,
@@ -132,7 +162,41 @@ export function usePaySalary() {
       });
       if (expenseError) throw expenseError;
 
-      // If advance, update employee's advance_given
+      // 3. Sync with daily_cash_flow - Calculate total expenses for today
+      const { data: expensesForDate, error: queryError } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("date", today);
+      
+      if (queryError) throw queryError;
+
+      // 4. Calculate cash and online expenses
+      const cashExpenses = expensesForDate
+        ?.filter(e => e.payment_method === 'Cash')
+        .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      const onlineExpenses = expensesForDate
+        ?.filter(e => e.payment_method === 'Online')
+        .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      const totalExpenses = cashExpenses + onlineExpenses;
+
+      // 5. Update or insert into daily_cash_flow
+      const { error: upsertError } = await supabase
+        .from("daily_cash_flow")
+        .upsert({
+          date: today,
+          cash_expenses: cashExpenses,
+          online_expenses: onlineExpenses,
+          total_expenses: totalExpenses,
+        }, {
+          onConflict: 'date',
+          ignoreDuplicates: false,
+        });
+      
+      if (upsertError) throw upsertError;
+
+      // 6. If advance, update employee's advance_given
       if (data.payment_type === "Advance") {
         const { data: employee } = await supabase
           .from("employees")
@@ -148,10 +212,13 @@ export function usePaySalary() {
         }
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
+      await queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      await queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast.success("Salary payment recorded!");
     },
     onError: (error) => {

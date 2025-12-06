@@ -32,6 +32,9 @@ export function useDailyCashFlow(date: string) {
       if (error) throw error;
       return data as DailyCashFlow | null;
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -49,6 +52,9 @@ export function useDailyCashFlowRange(startDate: string, endDate: string) {
       if (error) throw error;
       return data as DailyCashFlow[];
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -112,6 +118,9 @@ export function useDashboardStats() {
         overall: sumData(allData),
       };
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 }
 
@@ -168,13 +177,36 @@ export function useSaveDailyEntry() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast.success("Daily entry saved successfully!");
     },
     onError: (error) => {
       toast.error("Failed to save: " + error.message);
+    },
+  });
+}
+
+export function useDeleteDailyEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (date: string) => {
+      const { error } = await supabase
+        .from("daily_cash_flow")
+        .delete()
+        .eq("date", date);
+      
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast.success("Daily entry deleted!");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete: " + error.message);
     },
   });
 }
