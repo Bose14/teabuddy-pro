@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Accordion,
   AccordionContent,
@@ -28,7 +29,8 @@ import {
 import { useStock, useAddStock, useUpdateStock, useStockAlerts } from "@/hooks/useStock";
 import { STOCK_CATEGORIES, STOCK_UNITS } from "@/lib/constants";
 import { AlertBadge } from "@/components/AlertBadge";
-import { Loader2, Plus, Package, Minus, AlertTriangle } from "lucide-react";
+import StockAnalytics from "@/components/StockAnalytics";
+import { Loader2, Plus, Package, Minus, AlertTriangle, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Stock() {
@@ -260,67 +262,89 @@ export default function Stock() {
         </Dialog>
       </div>
 
-      {/* Alerts */}
-      {(lowStockItems.length > 0 || expiringItems.length > 0) && (
-        <div className="space-y-2">
-          {lowStockItems.length > 0 && (
-            <AlertBadge type="error" message={`Low stock: ${lowStockItems.map(s => s.product_name).join(", ")}`} />
-          )}
-          {expiringItems.length > 0 && (
-            <AlertBadge type="warning" message={`Expiring soon: ${expiringItems.map(s => s.product_name).join(", ")}`} />
-          )}
-        </div>
-      )}
+      {/* Main Tabs */}
+      <Tabs defaultValue="inventory" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="inventory" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Inventory
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Usage Analytics
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Stock Categories Accordion */}
-      <Card>
-        <CardContent className="pt-6">
-          <Accordion type="multiple" className="w-full">
-            {categories.map((category) => (
-              <AccordionItem key={category.name} value={category.name}>
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center justify-between w-full pr-4">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      <span className="font-semibold">{category.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {hasLowStockInCategory(category.items) && (
-                        <Badge variant="destructive" className="text-xs">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Low Stock
-                        </Badge>
+        {/* Inventory Tab */}
+        <TabsContent value="inventory" className="space-y-4">
+          {/* Alerts */}
+          {(lowStockItems.length > 0 || expiringItems.length > 0) && (
+            <div className="space-y-2">
+              {lowStockItems.length > 0 && (
+                <AlertBadge type="error" message={`Low stock: ${lowStockItems.map(s => s.product_name).join(", ")}`} />
+              )}
+              {expiringItems.length > 0 && (
+                <AlertBadge type="warning" message={`Expiring soon: ${expiringItems.map(s => s.product_name).join(", ")}`} />
+              )}
+            </div>
+          )}
+
+          {/* Stock Categories Accordion */}
+          <Card>
+            <CardContent className="pt-6">
+              <Accordion type="multiple" className="w-full">
+                {categories.map((category) => (
+                  <AccordionItem key={category.name} value={category.name}>
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5" />
+                          <span className="font-semibold">{category.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {hasLowStockInCategory(category.items) && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Low Stock
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-xs">
+                            {category.items.length} {category.items.length === 1 ? 'item' : 'items'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {category.items.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">No items in this category</p>
+                      ) : (
+                        <div className="space-y-2 pt-2">
+                          {category.items.map((item) => (
+                            <StockItem
+                              key={item.id}
+                              item={item}
+                              onUpdate={(type) => {
+                                setSelectedStock(item.id);
+                                setUpdateType(type);
+                                setShowUpdateDialog(true);
+                              }}
+                            />
+                          ))}
+                        </div>
                       )}
-                      <Badge variant="secondary" className="text-xs">
-                        {category.items.length} {category.items.length === 1 ? 'item' : 'items'}
-                      </Badge>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  {category.items.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No items in this category</p>
-                  ) : (
-                    <div className="space-y-2 pt-2">
-                      {category.items.map((item) => (
-                        <StockItem
-                          key={item.id}
-                          item={item}
-                          onUpdate={(type) => {
-                            setSelectedStock(item.id);
-                            setUpdateType(type);
-                            setShowUpdateDialog(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </CardContent>
-      </Card>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics">
+          <StockAnalytics />
+        </TabsContent>
+      </Tabs>
 
       {/* Update Stock Dialog */}
       <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
