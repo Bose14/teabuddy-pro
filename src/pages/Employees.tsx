@@ -25,9 +25,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEmployees, useAddEmployee, useSalaryPayments, usePaySalary, useDeleteEmployee } from "@/hooks/useEmployees";
+import { useEmployees, useAddEmployee, useSalaryPayments, usePaySalary, useDeleteEmployee, useReactivateEmployee } from "@/hooks/useEmployees";
 import { MONTHS, PAYMENT_METHODS } from "@/lib/constants";
-import { Loader2, Plus, Users, IndianRupee, Wallet, Smartphone, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Users, IndianRupee, Wallet, Smartphone, Trash2, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -66,6 +66,7 @@ export default function Employees() {
   const addMutation = useAddEmployee();
   const payMutation = usePaySalary();
   const deleteMutation = useDeleteEmployee();
+  const reactivateMutation = useReactivateEmployee();
 
   const handleAddEmployee = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +120,13 @@ export default function Employees() {
     ) || [];
   };
 
-  // Calculate summary statistics
+  // Get total spent on an employee (all time)
+  const getTotalSpent = (employeeId: string) => {
+    return payments?.filter(p => p.employee_id === employeeId)
+      .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+  };
+
+  // Calculate summary statistics (only for active employees)
   const activeEmployees = employees?.filter(e => e.is_active) || [];
   const totalEmployees = activeEmployees.length;
   const totalMonthlySalary = activeEmployees.reduce((acc, e) => acc + Number(e.monthly_salary), 0);
@@ -130,6 +137,9 @@ export default function Employees() {
   }, 0);
   
   const totalDue = totalMonthlySalary - monthPaymentsTotal;
+
+  // All employees for table display (including inactive)
+  const allEmployees = employees || [];
 
   return (
     <div className="lg:ml-64 p-4 mt-16 lg:p-6 space-y-6 safe-bottom">
@@ -277,43 +287,64 @@ export default function Employees() {
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
                 <p className="text-muted-foreground mt-2">Loading employees...</p>
               </div>
-            ) : activeEmployees.length > 0 ? (
+            ) : allEmployees.length > 0 ? (
               <div className="overflow-x-auto rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Role</TableHead>
+                        <TableHead>Employment</TableHead>
                         <TableHead className="text-right">Monthly Salary</TableHead>
                         <TableHead className="text-right">Paid ({selectedMonth})</TableHead>
-                        <TableHead className="text-right">Advance</TableHead>
+                        <TableHead className="text-right">Total Spent</TableHead>
                         <TableHead className="text-right">Due</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Payment Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activeEmployees.map((employee) => {
+                      {allEmployees.map((employee) => {
                         const monthPayments = getEmployeePayments(employee.id, selectedMonth, selectedYear);
                         const paidAmount = monthPayments.reduce((acc, p) => acc + Number(p.amount), 0);
-                        const remaining = Number(employee.monthly_salary) - paidAmount;
+                        const remaining = employee.is_active ? Number(employee.monthly_salary) - paidAmount : 0;
                         const isPaid = remaining <= 0;
+                        const totalSpent = getTotalSpent(employee.id);
 
                         return (
-                          <TableRow key={employee.id}>
-                            <TableCell className="font-medium">{employee.name}</TableCell>
+                          <TableRow key={employee.id} className={!employee.is_active ? "opacity-60 bg-muted/20" : ""}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {employee.name}
+                                {!employee.is_active && (
+                                  <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>{employee.role}</TableCell>
+                            <TableCell>
+                              {employee.is_active ? (
+                                <Badge className="bg-success/20 text-success hover:bg-success/30">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">
+                                  Inactive
+                                </Badge>
+                              )}
+                            </TableCell>
                             <TableCell className="text-right font-medium">
                               ₹{Number(employee.monthly_salary).toLocaleString("en-IN")}
                             </TableCell>
                             <TableCell className="text-right text-success font-medium">
                               ₹{paidAmount.toLocaleString("en-IN")}
                             </TableCell>
-                            <TableCell className="text-right text-warning font-medium">
-                              ₹{Number(employee.advance_given).toLocaleString("en-IN")}
+                            <TableCell className="text-right font-medium text-info">
+                              ₹{totalSpent.toLocaleString("en-IN")}
                             </TableCell>
                             <TableCell className="text-right text-destructive font-medium">
-                              ₹{remaining.toLocaleString("en-IN")}
+                              {employee.is_active ? `₹${remaining.toLocaleString("en-IN")}` : "-"}
                             </TableCell>
                             <TableCell>
                               {isPaid ? (
@@ -343,7 +374,7 @@ export default function Employees() {
                                   }
                                 }}>
                                   <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" disabled={isPaid}>
+                                    <Button size="sm" variant="outline" disabled={!employee.is_active || isPaid}>
                                       <IndianRupee className="h-4 w-4 mr-1" />
                                       Pay
                                     </Button>
@@ -434,31 +465,59 @@ export default function Employees() {
                                   </DialogContent>
                                 </Dialog>
 
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button size="sm" variant="destructive">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Remove Employee?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to remove {employee.name}? This action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => deleteMutation.mutate(employee.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                        Remove
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                {employee.is_active ? (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="sm" variant="destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Remove Employee?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to remove {employee.name}? They will be marked as inactive but their payment history will be preserved.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => deleteMutation.mutate(employee.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                          Remove
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                ) : (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="sm" variant="outline">
+                                        <RotateCcw className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Reactivate Employee?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Do you want to reactivate {employee.name}? They will be added back to the active employee list.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => reactivateMutation.mutate(employee.id)}
+                                          className="bg-success text-white hover:bg-success/90"
+                                        >
+                                          {reactivateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                          Reactivate
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>

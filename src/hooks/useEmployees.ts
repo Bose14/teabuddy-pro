@@ -123,6 +123,28 @@ export function useDeleteEmployee() {
   });
 }
 
+export function useReactivateEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Reactivate by setting is_active to true
+      const { error } = await supabase
+        .from("employees")
+        .update({ is_active: true })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employee reactivated!");
+    },
+    onError: (error) => {
+      toast.error("Failed: " + error.message);
+    },
+  });
+}
+
 export function usePaySalary() {
   const queryClient = useQueryClient();
 
