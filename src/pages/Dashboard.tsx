@@ -1,125 +1,120 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { StatsCard } from "@/components/StatsCard";
-import { TrendingUp, TrendingDown, Wallet, Milk } from "lucide-react";
-import { format, startOfMonth } from "date-fns";
+import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useDashboardStats } from "@/hooks/useDailyCashFlow";
+import { AlertBadge } from "@/components/AlertBadge";
+import { AnalyticsCharts } from "@/components/AnalyticsCharts";
 
 export default function Dashboard() {
-  const { data: salesData } = useQuery({
-    queryKey: ["sales"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales")
-        .select("*")
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: stats, isLoading } = useDashboardStats();
 
-  const { data: expensesData } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("*")
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pt-20 pb-6 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-center text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const { data: milkData } = useQuery({
-    queryKey: ["milk_usage"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("milk_usage")
-        .select("*")
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const calculateStats = () => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-
-    const todaySales = salesData?.filter((s) => s.date === today) || [];
-    const todayExpenses = expensesData?.filter((e) => e.date === today) || [];
-
-    const monthSales = salesData?.filter((s) => s.date >= monthStart) || [];
-    const monthExpenses = expensesData?.filter((e) => e.date >= monthStart) || [];
-
-    const todaySalesTotal = todaySales.reduce((sum, s) => sum + Number(s.amount), 0);
-    const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    const todayProfit = todaySalesTotal - todayExpensesTotal;
-
-    const monthSalesTotal = monthSales.reduce((sum, s) => sum + Number(s.amount), 0);
-    const monthExpensesTotal = monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    const monthProfit = monthSalesTotal - monthExpensesTotal;
-
-    const totalSales = salesData?.reduce((sum, s) => sum + Number(s.amount), 0) || 0;
-    const totalExpenses = expensesData?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-    const totalProfit = totalSales - totalExpenses;
-
-    const cashInHand = 
-      (salesData?.filter(s => s.payment_mode === 'Cash').reduce((sum, s) => sum + Number(s.amount), 0) || 0) -
-      (expensesData?.filter(e => e.mode === 'Cash').reduce((sum, e) => sum + Number(e.amount), 0) || 0);
-
-    const gpay = 
-      (salesData?.filter(s => s.payment_mode === 'GPay').reduce((sum, s) => sum + Number(s.amount), 0) || 0) -
-      (expensesData?.filter(e => e.mode === 'GPay').reduce((sum, e) => sum + Number(e.amount), 0) || 0);
-
-    const phonePe = 
-      (salesData?.filter(s => s.payment_mode === 'PhonePe').reduce((sum, s) => sum + Number(s.amount), 0) || 0) -
-      (expensesData?.filter(e => e.mode === 'PhonePe').reduce((sum, e) => sum + Number(e.amount), 0) || 0);
-
-    const todayMilk = milkData?.find(m => m.date === today);
-    const monthMilk = milkData?.filter(m => m.date >= monthStart) || [];
-    const monthMilkPurchased = monthMilk.reduce((sum, m) => sum + Number(m.purchased), 0);
-    const monthMilkUsed = monthMilk.reduce((sum, m) => sum + Number(m.used), 0);
-
-    return {
-      today: { sales: todaySalesTotal, expenses: todayExpensesTotal, profit: todayProfit },
-      month: { sales: monthSalesTotal, expenses: monthExpensesTotal, profit: monthProfit },
-      total: { sales: totalSales, expenses: totalExpenses, profit: totalProfit },
-      payment: { cash: cashInHand, gpay, phonePe, online: gpay + phonePe },
-      milk: {
-        todayPurchased: todayMilk ? Number(todayMilk.purchased) : 0,
-        todayUsed: todayMilk ? Number(todayMilk.used) : 0,
-        remaining: todayMilk ? Number(todayMilk.remaining) : 0,
-        monthPurchased: monthMilkPurchased,
-        monthUsed: monthMilkUsed,
-      },
-    };
-  };
-
-  const stats = calculateStats();
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-background pt-20 pb-6 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto">
+          <AlertBadge 
+            type="info" 
+            message="No data available. Start by adding a daily entry!" 
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pt-20 pb-6 px-4 md:px-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Today Section */}
+        {/* Daily Section - Most Important */}
         <section>
-          <h2 className="text-2xl font-bold mb-4">Today</h2>
+          <h2 className="text-2xl font-bold mb-4">Today's Summary</h2>
+          {stats.today ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <StatsCard
+                  title="Total Sales"
+                  value={`₹${stats.today.sales.toFixed(2)}`}
+                  icon={TrendingUp}
+                  variant="sales"
+                />
+                <StatsCard
+                  title="Total Expenses"
+                  value={`₹${stats.today.expenses.toFixed(2)}`}
+                  icon={TrendingDown}
+                  variant="expense"
+                />
+                <StatsCard
+                  title="Profit"
+                  value={`₹${stats.today.profit.toFixed(2)}`}
+                  icon={Wallet}
+                  variant="profit"
+                />
+              </div>
+              
+              {/* Today's Details */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="p-4 border-2">
+                  <p className="text-xs text-muted-foreground font-medium">Cash Sales</p>
+                  <p className="text-xl font-bold mt-1 text-success">₹{stats.today.cashSales.toFixed(2)}</p>
+                </Card>
+                <Card className="p-4 border-2">
+                  <p className="text-xs text-muted-foreground font-medium">Online Sales</p>
+                  <p className="text-xl font-bold mt-1 text-info">₹{stats.today.onlineSales.toFixed(2)}</p>
+                </Card>
+                <Card className="p-4 border-2">
+                  <p className="text-xs text-muted-foreground font-medium">Closing Cash</p>
+                  <p className="text-xl font-bold mt-1">₹{stats.today.closingCash.toFixed(2)}</p>
+                </Card>
+                <Card className="p-4 border-2">
+                  <p className="text-xs text-muted-foreground font-medium">Expected Cash</p>
+                  <p className="text-xl font-bold mt-1 text-muted-foreground">₹{stats.today.expectedCash.toFixed(2)}</p>
+                </Card>
+              </div>
+              {stats.today.cashMismatch && (
+                <div className="mt-4">
+                  <AlertBadge 
+                    type="warning" 
+                    message={`Cash mismatch! Expected: ₹${stats.today.expectedCash.toFixed(2)} | Actual: ₹${stats.today.closingCash.toFixed(2)}`} 
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <AlertBadge 
+              type="info" 
+              message="No data for today yet. Go to Daily Entry to add today's cash flow." 
+            />
+          )}
+        </section>
+
+        {/* Weekly Section */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">This Week</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatsCard
-              title="Total Sales"
-              value={`₹${stats.today.sales.toFixed(2)}`}
+              title="Weekly Sales"
+              value={`₹${stats.weekly.sales.toFixed(2)}`}
               icon={TrendingUp}
               variant="sales"
             />
             <StatsCard
-              title="Total Expenses"
-              value={`₹${stats.today.expenses.toFixed(2)}`}
+              title="Weekly Expenses"
+              value={`₹${stats.weekly.expenses.toFixed(2)}`}
               icon={TrendingDown}
               variant="expense"
             />
             <StatsCard
-              title="Profit"
-              value={`₹${stats.today.profit.toFixed(2)}`}
+              title="Weekly Profit"
+              value={`₹${stats.weekly.profit.toFixed(2)}`}
               icon={Wallet}
               variant="profit"
             />
@@ -132,19 +127,19 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatsCard
               title="Monthly Sales"
-              value={`₹${stats.month.sales.toFixed(2)}`}
+              value={`₹${stats.monthly.sales.toFixed(2)}`}
               icon={TrendingUp}
               variant="sales"
             />
             <StatsCard
               title="Monthly Expenses"
-              value={`₹${stats.month.expenses.toFixed(2)}`}
+              value={`₹${stats.monthly.expenses.toFixed(2)}`}
               icon={TrendingDown}
               variant="expense"
             />
             <StatsCard
               title="Monthly Profit"
-              value={`₹${stats.month.profit.toFixed(2)}`}
+              value={`₹${stats.monthly.profit.toFixed(2)}`}
               icon={Wallet}
               variant="profit"
             />
@@ -157,78 +152,30 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatsCard
               title="Total Sales"
-              value={`₹${stats.total.sales.toFixed(2)}`}
+              value={`₹${stats.overall.sales.toFixed(2)}`}
               icon={TrendingUp}
               variant="sales"
             />
             <StatsCard
               title="Total Expenses"
-              value={`₹${stats.total.expenses.toFixed(2)}`}
+              value={`₹${stats.overall.expenses.toFixed(2)}`}
               icon={TrendingDown}
               variant="expense"
             />
             <StatsCard
               title="Total Profit"
-              value={`₹${stats.total.profit.toFixed(2)}`}
+              value={`₹${stats.overall.profit.toFixed(2)}`}
               icon={Wallet}
               variant="profit"
             />
           </div>
         </section>
 
-        {/* Payment Summary */}
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Payment Summary</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-card p-6 rounded-xl border-2">
-              <p className="text-sm text-muted-foreground font-medium">Cash in Hand</p>
-              <p className="text-2xl font-bold mt-2">₹{stats.payment.cash.toFixed(2)}</p>
-            </div>
-            <div className="bg-card p-6 rounded-xl border-2">
-              <p className="text-sm text-muted-foreground font-medium">GPay</p>
-              <p className="text-2xl font-bold mt-2">₹{stats.payment.gpay.toFixed(2)}</p>
-            </div>
-            <div className="bg-card p-6 rounded-xl border-2">
-              <p className="text-sm text-muted-foreground font-medium">PhonePe</p>
-              <p className="text-2xl font-bold mt-2">₹{stats.payment.phonePe.toFixed(2)}</p>
-            </div>
-            <div className="bg-card p-6 rounded-xl border-2">
-              <p className="text-sm text-muted-foreground font-medium">Total Online</p>
-              <p className="text-2xl font-bold mt-2">₹{stats.payment.online.toFixed(2)}</p>
-            </div>
-          </div>
-        </section>
 
-        {/* Milk Summary */}
+        {/* Analytics Charts */}
         <section>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Milk className="h-5 w-5 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold">Milk Summary</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card className="p-4 border-2">
-              <p className="text-xs text-muted-foreground font-medium">Today Purchased</p>
-              <p className="text-xl font-bold mt-1 text-primary">{stats.milk.todayPurchased.toFixed(2)} L</p>
-            </Card>
-            <Card className="p-4 border-2">
-              <p className="text-xs text-muted-foreground font-medium">Today Used</p>
-              <p className="text-xl font-bold mt-1 text-destructive">{stats.milk.todayUsed.toFixed(2)} L</p>
-            </Card>
-            <Card className="p-4 border-2">
-              <p className="text-xs text-muted-foreground font-medium">Remaining</p>
-              <p className="text-xl font-bold mt-1 text-success">{stats.milk.remaining.toFixed(2)} L</p>
-            </Card>
-            <Card className="p-4 border-2">
-              <p className="text-xs text-muted-foreground font-medium">Month Purchased</p>
-              <p className="text-xl font-bold mt-1">{stats.milk.monthPurchased.toFixed(2)} L</p>
-            </Card>
-            <Card className="p-4 border-2">
-              <p className="text-xs text-muted-foreground font-medium">Month Used</p>
-              <p className="text-xl font-bold mt-1">{stats.milk.monthUsed.toFixed(2)} L</p>
-            </Card>
-          </div>
+          <h2 className="text-2xl font-bold mb-4">Analytics</h2>
+          <AnalyticsCharts />
         </section>
       </div>
     </div>

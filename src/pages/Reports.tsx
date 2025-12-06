@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, FileText } from "lucide-react";
-import { format, startOfWeek, startOfMonth, subDays } from "date-fns";
+import { format, startOfWeek, startOfMonth } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -13,23 +13,11 @@ import * as XLSX from "xlsx";
 export default function Reports() {
   const [filterType, setFilterType] = useState("monthly");
 
-  const { data: salesData } = useQuery({
-    queryKey: ["sales"],
+  const { data: dailyCashFlowData, isLoading } = useQuery({
+    queryKey: ["daily-cash-flow-all"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("sales")
-        .select("*")
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: expensesData } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("expenses")
+        .from("daily_cash_flow")
         .select("*")
         .order("date", { ascending: false });
       if (error) throw error;
@@ -46,7 +34,7 @@ export default function Reports() {
         startDate = today;
         break;
       case "weekly":
-        startDate = format(startOfWeek(new Date()), "yyyy-MM-dd");
+        startDate = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
         break;
       case "monthly":
         startDate = format(startOfMonth(new Date()), "yyyy-MM-dd");
@@ -56,53 +44,18 @@ export default function Reports() {
         break;
     }
 
-    const filteredSales = startDate
-      ? salesData?.filter((s) => s.date >= startDate) || []
-      : salesData || [];
-    const filteredExpenses = startDate
-      ? expensesData?.filter((e) => e.date >= startDate) || []
-      : expensesData || [];
+    const filtered = startDate
+      ? dailyCashFlowData?.filter((d) => d.date >= startDate) || []
+      : dailyCashFlowData || [];
 
-    // Group by date
-    const dateMap = new Map();
-    
-    filteredSales.forEach((sale) => {
-      if (!dateMap.has(sale.date)) {
-        dateMap.set(sale.date, {
-          date: sale.date,
-          sales: 0,
-          expenses: 0,
-          cash: 0,
-          gpay: 0,
-          phonepe: 0,
-        });
-      }
-      const entry = dateMap.get(sale.date);
-      entry.sales += Number(sale.amount);
-      if (sale.payment_mode === "Cash") entry.cash += Number(sale.amount);
-      if (sale.payment_mode === "GPay") entry.gpay += Number(sale.amount);
-      if (sale.payment_mode === "PhonePe") entry.phonepe += Number(sale.amount);
-    });
-
-    filteredExpenses.forEach((expense) => {
-      if (!dateMap.has(expense.date)) {
-        dateMap.set(expense.date, {
-          date: expense.date,
-          sales: 0,
-          expenses: 0,
-          cash: 0,
-          gpay: 0,
-          phonepe: 0,
-        });
-      }
-      const entry = dateMap.get(expense.date);
-      entry.expenses += Number(expense.amount);
-      if (expense.mode === "Cash") entry.cash -= Number(expense.amount);
-      if (expense.mode === "GPay") entry.gpay -= Number(expense.amount);
-      if (expense.mode === "PhonePe") entry.phonepe -= Number(expense.amount);
-    });
-
-    return Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+    return filtered.map(item => ({
+      date: item.date,
+      sales: Number(item.daily_sales),
+      expenses: Number(item.total_expenses),
+      profit: Number(item.daily_profit),
+      cashSales: Number(item.cash_sales),
+      onlineSales: Number(item.online_sales),
+    }));
   };
 
   const reportData = getFilteredData();
@@ -119,14 +72,13 @@ export default function Reports() {
       format(new Date(row.date), "dd MMM yyyy"),
       `₹${row.sales.toFixed(2)}`,
       `₹${row.expenses.toFixed(2)}`,
-      `₹${(row.sales - row.expenses).toFixed(2)}`,
-      `₹${row.cash.toFixed(2)}`,
-      `₹${row.gpay.toFixed(2)}`,
-      `₹${row.phonepe.toFixed(2)}`,
+      `₹${row.profit.toFixed(2)}`,
+      `₹${row.cashSales.toFixed(2)}`,
+      `₹${row.onlineSales.toFixed(2)}`,
     ]);
 
     autoTable(doc, {
-      head: [["Date", "Sales", "Expenses", "Profit", "Cash", "GPay", "PhonePe"]],
+      head: [["Date", "Sales", "Expenses", "Profit", "Cash Sales", "Online Sales"]],
       body: tableData,
       startY: 40,
     });
@@ -139,10 +91,9 @@ export default function Reports() {
       Date: format(new Date(row.date), "dd MMM yyyy"),
       Sales: row.sales.toFixed(2),
       Expenses: row.expenses.toFixed(2),
-      Profit: (row.sales - row.expenses).toFixed(2),
-      Cash: row.cash.toFixed(2),
-      GPay: row.gpay.toFixed(2),
-      PhonePe: row.phonepe.toFixed(2),
+      Profit: row.profit.toFixed(2),
+      "Cash Sales": row.cashSales.toFixed(2),
+      "Online Sales": row.onlineSales.toFixed(2),
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
@@ -155,12 +106,11 @@ export default function Reports() {
     (acc, row) => ({
       sales: acc.sales + row.sales,
       expenses: acc.expenses + row.expenses,
-      profit: acc.profit + (row.sales - row.expenses),
-      cash: acc.cash + row.cash,
-      gpay: acc.gpay + row.gpay,
-      phonepe: acc.phonepe + row.phonepe,
+      profit: acc.profit + row.profit,
+      cashSales: acc.cashSales + row.cashSales,
+      onlineSales: acc.onlineSales + row.onlineSales,
     }),
-    { sales: 0, expenses: 0, profit: 0, cash: 0, gpay: 0, phonepe: 0 }
+    { sales: 0, expenses: 0, profit: 0, cashSales: 0, onlineSales: 0 }
   );
 
   return (
@@ -201,20 +151,32 @@ export default function Reports() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Total Sales</p>
-            <p className="text-2xl font-bold text-primary">₹{totals.sales.toFixed(2)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Total Expenses</p>
-            <p className="text-2xl font-bold text-destructive">₹{totals.expenses.toFixed(2)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Total Profit</p>
-            <p className="text-2xl font-bold text-success">₹{totals.profit.toFixed(2)}</p>
-          </Card>
-        </div>
+        {isLoading ? (
+          <p className="text-center text-muted-foreground">Loading...</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card className="p-4">
+              <p className="text-sm text-muted-foreground">Total Sales</p>
+              <p className="text-2xl font-bold text-primary">₹{totals.sales.toFixed(2)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-muted-foreground">Total Expenses</p>
+              <p className="text-2xl font-bold text-destructive">₹{totals.expenses.toFixed(2)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-muted-foreground">Total Profit</p>
+              <p className="text-2xl font-bold text-success">₹{totals.profit.toFixed(2)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-muted-foreground">Cash Sales</p>
+              <p className="text-2xl font-bold text-success">₹{totals.cashSales.toFixed(2)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-sm text-muted-foreground">Online Sales</p>
+              <p className="text-2xl font-bold text-info">₹{totals.onlineSales.toFixed(2)}</p>
+            </Card>
+          </div>
+        )}
 
         <Card className="overflow-x-auto">
           <table className="w-full">
@@ -224,9 +186,8 @@ export default function Reports() {
                 <th className="p-3 text-right font-semibold">Sales</th>
                 <th className="p-3 text-right font-semibold">Expenses</th>
                 <th className="p-3 text-right font-semibold">Profit</th>
-                <th className="p-3 text-right font-semibold">Cash</th>
-                <th className="p-3 text-right font-semibold">GPay</th>
-                <th className="p-3 text-right font-semibold">PhonePe</th>
+                <th className="p-3 text-right font-semibold">Cash Sales</th>
+                <th className="p-3 text-right font-semibold">Online Sales</th>
               </tr>
             </thead>
             <tbody>
@@ -240,11 +201,10 @@ export default function Reports() {
                     ₹{row.expenses.toFixed(2)}
                   </td>
                   <td className="p-3 text-right text-success font-bold">
-                    ₹{(row.sales - row.expenses).toFixed(2)}
+                    ₹{row.profit.toFixed(2)}
                   </td>
-                  <td className="p-3 text-right">₹{row.cash.toFixed(2)}</td>
-                  <td className="p-3 text-right">₹{row.gpay.toFixed(2)}</td>
-                  <td className="p-3 text-right">₹{row.phonepe.toFixed(2)}</td>
+                  <td className="p-3 text-right">₹{row.cashSales.toFixed(2)}</td>
+                  <td className="p-3 text-right">₹{row.onlineSales.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

@@ -104,7 +104,8 @@ export function useAddExpense() {
       is_salary_payment?: boolean;
       employee_id?: string;
     }) => {
-      const { error } = await supabase.from("expenses").insert({
+      // 1. Insert the expense
+      const { error: insertError } = await supabase.from("expenses").insert({
         date: data.date,
         expense_type: data.expense_type,
         amount: data.amount,
@@ -114,7 +115,41 @@ export function useAddExpense() {
         is_salary_payment: data.is_salary_payment || false,
         employee_id: data.employee_id || null,
       });
-      if (error) throw error;
+      if (insertError) throw insertError;
+
+      // 2. Calculate total expenses for this date
+      const { data: expensesForDate, error: queryError } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("date", data.date);
+      
+      if (queryError) throw queryError;
+
+      // 3. Calculate cash and online expenses
+      const cashExpenses = expensesForDate
+        ?.filter(e => e.payment_method === 'Cash')
+        .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      const onlineExpenses = expensesForDate
+        ?.filter(e => e.payment_method === 'Online')
+        .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      const totalExpenses = cashExpenses + onlineExpenses;
+
+      // 4. Update or insert into daily_cash_flow
+      const { error: upsertError } = await supabase
+        .from("daily_cash_flow")
+        .upsert({
+          date: data.date,
+          cash_expenses: cashExpenses,
+          online_expenses: onlineExpenses,
+          total_expenses: totalExpenses,
+        }, {
+          onConflict: 'date',
+          ignoreDuplicates: false,
+        });
+      
+      if (upsertError) throw upsertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
@@ -134,12 +169,63 @@ export function useDeleteExpense() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("expenses").delete().eq("id", id);
-      if (error) throw error;
+      // 1. Get the expense date before deleting (needed for sync)
+      const { data: expenseToDelete, error: fetchError } = await supabase
+        .from("expenses")
+        .select("date")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      const expenseDate = expenseToDelete.date;
+
+      // 2. Delete the expense
+      const { error: deleteError } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", id);
+      
+      if (deleteError) throw deleteError;
+
+      // 3. Recalculate expenses for that date
+      const { data: remainingExpenses, error: queryError } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("date", expenseDate);
+      
+      if (queryError) throw queryError;
+
+      // 4. Calculate new totals
+      const cashExpenses = remainingExpenses
+        ?.filter(e => e.payment_method === 'Cash')
+        .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      const onlineExpenses = remainingExpenses
+        ?.filter(e => e.payment_method === 'Online')
+        .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      const totalExpenses = cashExpenses + onlineExpenses;
+
+      // 5. Update daily_cash_flow
+      const { error: upsertError } = await supabase
+        .from("daily_cash_flow")
+        .upsert({
+          date: expenseDate,
+          cash_expenses: cashExpenses,
+          online_expenses: onlineExpenses,
+          total_expenses: totalExpenses,
+        }, {
+          onConflict: 'date',
+          ignoreDuplicates: false,
+        });
+      
+      if (upsertError) throw upsertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast.success("Expense deleted!");
     },
     onError: (error) => {
