@@ -339,29 +339,27 @@ export default function Expenses() {
       {/* Date Range Filter */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1">
-              <Label>From Date</Label>
+          <div className="flex items-center gap-4 flex-wrap">
+            <Label className="text-sm font-medium">Filter by:</Label>
+            <div className="flex gap-2 flex-wrap items-center">
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="input-field"
+                className="w-[160px]"
               />
-            </div>
-            <div className="flex-1">
-              <Label>To Date</Label>
+              <span className="text-muted-foreground text-sm">to</span>
               <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="input-field"
+                className="w-[160px]"
               />
+              <Button onClick={setThisMonth} variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                This Month
+              </Button>
             </div>
-            <Button onClick={setThisMonth} variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
-              This Month
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -375,111 +373,50 @@ export default function Expenses() {
           {isLoading ? (
             <p className="text-center py-8">Loading...</p>
           ) : expenses && expenses.length > 0 ? (
-            <>
-              {/* Desktop Table */}
-              <div className="hidden md:block rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Vendor</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell className="font-medium">
-                          {format(new Date(expense.date), "dd MMM yyyy")}
-                        </TableCell>
-                        <TableCell>{expense.expense_type}</TableCell>
-                        <TableCell className="text-right font-semibold text-destructive">
-                          ₹{Number(expense.amount).toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell>{getPaymentBadge(expense.payment_method)}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {expense.vendor_name || "-"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm max-w-xs truncate">
-                          {expense.notes || "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenDialog(expense)}
-                              disabled={expense.is_salary_payment}
-                              title={expense.is_salary_payment ? "Salary payments cannot be edited here" : "Edit expense"}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will delete the expense of <strong>₹{Number(expense.amount).toLocaleString("en-IN")}</strong> for <strong>{expense.expense_type}</strong> on {format(new Date(expense.date), "dd MMM yyyy")}.
-                                    {expense.is_salary_payment && (
-                                      <>
-                                        <br /><br />
-                                        <strong className="text-destructive">Warning:</strong> This is a salary payment. Deleting it will also remove the salary record from the employee's history.
-                                      </>
-                                    )}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(expense.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete Expense
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="md:hidden space-y-3">
-                {expenses.map((expense) => (
-                  <Card key={expense.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-semibold">{expense.expense_type}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(expense.date), "dd MMM yyyy")}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {format(new Date(expense.date), "dd MMM yyyy")}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{expense.expense_type}</TableCell>
+                      <TableCell className="text-right font-semibold text-destructive whitespace-nowrap">
+                        ₹{Number(expense.amount).toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{getPaymentBadge(expense.payment_method)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {expense.vendor_name || "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm max-w-xs truncate">
+                        {expense.notes || "-"}
+                      </TableCell>
+                      <TableCell className="text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
                             onClick={() => handleOpenDialog(expense)}
                             disabled={expense.is_salary_payment}
+                            title={expense.is_salary_payment ? "Salary payments cannot be edited here" : "Edit expense"}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="icon">
+                              <Button variant="ghost" size="icon">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
@@ -487,7 +424,13 @@ export default function Expenses() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Delete ₹{Number(expense.amount).toLocaleString("en-IN")} expense?
+                                  This will delete the expense of <strong>₹{Number(expense.amount).toLocaleString("en-IN")}</strong> for <strong>{expense.expense_type}</strong> on {format(new Date(expense.date), "dd MMM yyyy")}.
+                                  {expense.is_salary_payment && (
+                                    <>
+                                      <br /><br />
+                                      <strong className="text-destructive">Warning:</strong> This is a salary payment. Deleting it will also remove the salary record from the employee's history.
+                                    </>
+                                  )}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -496,42 +439,18 @@ export default function Expenses() {
                                   onClick={() => handleDelete(expense.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Delete
+                                  Delete Expense
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center p-2 bg-secondary rounded">
-                          <span className="text-sm text-muted-foreground">Amount:</span>
-                          <span className="font-semibold text-destructive">
-                            ₹{Number(expense.amount).toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center p-2 bg-secondary rounded">
-                          <span className="text-sm text-muted-foreground">Method:</span>
-                          {getPaymentBadge(expense.payment_method)}
-                        </div>
-                        {expense.vendor_name && (
-                          <div className="flex justify-between items-center p-2 bg-secondary rounded">
-                            <span className="text-sm text-muted-foreground">Vendor:</span>
-                            <span className="text-sm">{expense.vendor_name}</span>
-                          </div>
-                        )}
-                        {expense.notes && (
-                          <div className="p-2 bg-secondary rounded">
-                            <span className="text-xs text-muted-foreground block mb-1">Notes:</span>
-                            <span className="text-sm">{expense.notes}</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-12">
               <TrendingDown className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

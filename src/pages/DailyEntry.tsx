@@ -354,29 +354,27 @@ export default function DailyEntry() {
       {/* Date Range Filter */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1">
-              <Label>From Date</Label>
+          <div className="flex items-center gap-4 flex-wrap">
+            <Label className="text-sm font-medium">Filter by:</Label>
+            <div className="flex gap-2 flex-wrap items-center">
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="input-field"
+                className="w-[160px]"
               />
-            </div>
-            <div className="flex-1">
-              <Label>To Date</Label>
+              <span className="text-muted-foreground text-sm">to</span>
               <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="input-field"
+                className="w-[160px]"
               />
+              <Button onClick={setThisMonth} variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                This Month
+              </Button>
             </div>
-            <Button onClick={setThisMonth} variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
-              This Month
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -390,96 +388,40 @@ export default function DailyEntry() {
           {isLoading ? (
             <p className="text-center py-8">Loading...</p>
           ) : entries && entries.length > 0 ? (
-            <>
-              {/* Desktop Table */}
-              <div className="hidden md:block rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Cash Sales</TableHead>
-                      <TableHead className="text-right">Online Sales</TableHead>
-                      <TableHead className="text-right">Total Sales</TableHead>
-                      <TableHead className="text-right">Expenses</TableHead>
-                      <TableHead className="text-right">Profit</TableHead>
-                      <TableHead className="text-right">Closing Cash</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {entries.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">
-                          {format(new Date(entry.date), "dd MMM yyyy")}
-                        </TableCell>
-                        <TableCell className="text-right">₹{Number(entry.cash_sales).toLocaleString("en-IN")}</TableCell>
-                        <TableCell className="text-right">₹{Number(entry.online_sales).toLocaleString("en-IN")}</TableCell>
-                        <TableCell className="text-right font-semibold">₹{Number(entry.daily_sales).toLocaleString("en-IN")}</TableCell>
-                        <TableCell className="text-right text-destructive">₹{Number(entry.total_expenses).toLocaleString("en-IN")}</TableCell>
-                        <TableCell className={`text-right font-semibold ${Number(entry.daily_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          ₹{Number(entry.daily_profit).toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell className="text-right">₹{Number(entry.closing_cash).toLocaleString("en-IN")}</TableCell>
-                        <TableCell className="text-center">{getStatusBadge(entry)}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenDialog(entry.date)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Daily Entry?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will delete the cash flow entry for <strong>{format(new Date(entry.date), "dd MMM yyyy")}</strong>.
-                                    <br /><br />
-                                    <strong>Note:</strong> Expenses recorded for this day will NOT be deleted.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(entry.date)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete Entry
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="md:hidden space-y-3">
-                {entries.map((entry) => (
-                  <Card key={entry.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-semibold">{format(new Date(entry.date), "dd MMM yyyy")}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {getStatusBadge(entry)}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Cash Sales</TableHead>
+                    <TableHead className="text-right">Online Sales</TableHead>
+                    <TableHead className="text-right">Total Sales</TableHead>
+                    <TableHead className="text-right">Expenses</TableHead>
+                    <TableHead className="text-right">Profit</TableHead>
+                    <TableHead className="text-right">Closing Cash</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {format(new Date(entry.date), "dd MMM yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">₹{Number(entry.cash_sales).toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">₹{Number(entry.online_sales).toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-right font-semibold whitespace-nowrap">₹{Number(entry.daily_sales).toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-right text-destructive whitespace-nowrap">₹{Number(entry.total_expenses).toLocaleString("en-IN")}</TableCell>
+                      <TableCell className={`text-right font-semibold whitespace-nowrap ${Number(entry.daily_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        ₹{Number(entry.daily_profit).toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">₹{Number(entry.closing_cash).toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-center whitespace-nowrap">{getStatusBadge(entry)}</TableCell>
+                      <TableCell className="text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
                             onClick={() => handleOpenDialog(entry.date)}
                           >
@@ -487,15 +429,17 @@ export default function DailyEntry() {
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="icon">
+                              <Button variant="ghost" size="icon">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Entry?</AlertDialogTitle>
+                                <AlertDialogTitle>Delete Daily Entry?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Delete entry for {format(new Date(entry.date), "dd MMM yyyy")}?
+                                  This will delete the cash flow entry for <strong>{format(new Date(entry.date), "dd MMM yyyy")}</strong>.
+                                  <br /><br />
+                                  <strong>Note:</strong> Expenses recorded for this day will NOT be deleted.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -504,38 +448,18 @@ export default function DailyEntry() {
                                   onClick={() => handleDelete(entry.date)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Delete
+                                  Delete Entry
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex justify-between p-2 bg-secondary rounded">
-                          <span className="text-muted-foreground">Sales:</span>
-                          <span className="font-semibold">₹{Number(entry.daily_sales).toLocaleString("en-IN")}</span>
-                        </div>
-                        <div className="flex justify-between p-2 bg-secondary rounded">
-                          <span className="text-muted-foreground">Profit:</span>
-                          <span className={`font-semibold ${Number(entry.daily_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            ₹{Number(entry.daily_profit).toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                        <div className="flex justify-between p-2 bg-secondary rounded">
-                          <span className="text-muted-foreground">Cash:</span>
-                          <span className="font-semibold">₹{Number(entry.cash_sales).toLocaleString("en-IN")}</span>
-                        </div>
-                        <div className="flex justify-between p-2 bg-secondary rounded">
-                          <span className="text-muted-foreground">Online:</span>
-                          <span className="font-semibold">₹{Number(entry.online_sales).toLocaleString("en-IN")}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-12">
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

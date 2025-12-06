@@ -480,3 +480,196 @@ export default function Employees() {
     </div>
   );
 }
+                    const monthPayments = getEmployeePayments(employee.id, selectedMonth, selectedYear);
+                    const paidAmount = monthPayments.reduce((acc, p) => acc + Number(p.amount), 0);
+                    const remaining = Number(employee.monthly_salary) - paidAmount;
+                    const isPaid = remaining <= 0;
+
+                    return (
+                      <Card key={employee.id}>
+                        <CardContent className="pt-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg">{employee.name}</h3>
+                              <p className="text-sm text-muted-foreground">{employee.role}</p>
+                            </div>
+                            {isPaid ? (
+                              <Badge className="bg-success/20 text-success">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Paid
+                              </Badge>
+                            ) : paidAmount > 0 ? (
+                              <Badge className="bg-warning/20 text-warning">
+                                Partial
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive">Unpaid</Badge>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Monthly Salary</p>
+                              <p className="font-semibold">₹{Number(employee.monthly_salary).toLocaleString("en-IN")}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Paid</p>
+                              <p className="font-semibold text-success">₹{paidAmount.toLocaleString("en-IN")}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Advance</p>
+                              <p className="font-semibold text-warning">₹{Number(employee.advance_given).toLocaleString("en-IN")}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Due</p>
+                              <p className="font-semibold text-destructive">₹{remaining.toLocaleString("en-IN")}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <Dialog open={showPayDialog && selectedEmployee === employee.id} onOpenChange={(open) => {
+                              setShowPayDialog(open);
+                              if (open) {
+                                setSelectedEmployee(employee.id);
+                                setPaymentAmount("");
+                                setPaymentMonth(selectedMonth);
+                                setPaymentYear(selectedYear);
+                              }
+                            }}>
+                              <DialogTrigger asChild>
+                                <Button className="flex-1" size="sm" disabled={isPaid}>
+                                  <IndianRupee className="h-4 w-4 mr-1" />
+                                  Pay
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Pay {employee.name}</DialogTitle>
+                                </DialogHeader>
+                                <form onSubmit={handlePaySalary} className="space-y-4">
+                                  <div>
+                                    <Label>Payment Type</Label>
+                                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                                      {["Salary", "Advance"].map((type) => (
+                                        <Button
+                                          key={type}
+                                          type="button"
+                                          variant={paymentType === type ? "default" : "outline"}
+                                          onClick={() => setPaymentType(type)}
+                                        >
+                                          {type}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <Label>Amount (₹)</Label>
+                                    <Input
+                                      type="number"
+                                      value={paymentAmount}
+                                      onChange={(e) => setPaymentAmount(e.target.value)}
+                                      placeholder="0"
+                                      className="input-field mt-1.5"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label>Month</Label>
+                                      <Select value={paymentMonth} onValueChange={setPaymentMonth}>
+                                        <SelectTrigger className="mt-1.5">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {MONTHS.map((month) => (
+                                            <SelectItem key={month} value={month}>{month}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div>
+                                      <Label>Year</Label>
+                                      <Select value={paymentYear.toString()} onValueChange={(v) => setPaymentYear(parseInt(v))}>
+                                        <SelectTrigger className="mt-1.5">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {[2024, 2025, 2026].map((year) => (
+                                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <Label>Payment Method</Label>
+                                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                                      {PAYMENT_METHODS.map((method) => (
+                                        <Button
+                                          key={method}
+                                          type="button"
+                                          variant={paymentMethod === method ? "default" : "outline"}
+                                          onClick={() => setPaymentMethod(method)}
+                                        >
+                                          {method === "Cash" ? <Wallet className="h-4 w-4 mr-2" /> : <Smartphone className="h-4 w-4 mr-2" />}
+                                          {method}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <Button type="submit" className="w-full" disabled={payMutation.isPending}>
+                                    {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                    Record Payment
+                                  </Button>
+                                </form>
+                              </DialogContent>
+                            </Dialog>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remove Employee?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to remove {employee.name}? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate(employee.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                    Remove
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No employees added yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Click "Add Employee" to get started</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
