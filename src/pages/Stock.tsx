@@ -26,17 +26,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useStock, useAddStock, useUpdateStock, useStockAlerts } from "@/hooks/useStock";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useStock, useAddStock, useUpdateStock, useDeleteStock, useStockAlerts } from "@/hooks/useStock";
 import { STOCK_CATEGORIES, STOCK_UNITS } from "@/lib/constants";
 import { AlertBadge } from "@/components/AlertBadge";
 import StockAnalytics from "@/components/StockAnalytics";
-import { Loader2, Plus, Package, Minus, AlertTriangle, BarChart3 } from "lucide-react";
+import { Loader2, Plus, Package, Minus, AlertTriangle, BarChart3, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Stock() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
+  const [stockToDelete, setStockToDelete] = useState<{ id: string; name: string } | null>(null);
   const [updateType, setUpdateType] = useState<"purchase" | "use">("purchase");
   const [updateQty, setUpdateQty] = useState("");
 
@@ -55,11 +67,17 @@ export default function Stock() {
   const { lowStockItems, expiringItems } = useStockAlerts();
   const addMutation = useAddStock();
   const updateMutation = useUpdateStock();
+  const deleteMutation = useDeleteStock();
 
   const handleAddStock = (e: React.FormEvent) => {
     e.preventDefault();
     if (!productName || !category) {
       toast.error("Please fill product name and category");
+      return;
+    }
+
+    if (!purchasePrice || parseFloat(purchasePrice) <= 0) {
+      toast.error("Please enter a valid purchase price for cost tracking");
       return;
     }
 
@@ -103,6 +121,17 @@ export default function Stock() {
         setUpdateQty("");
         setShowUpdateDialog(false);
         setSelectedStock(null);
+      }
+    });
+  };
+
+  const handleDeleteStock = () => {
+    if (!stockToDelete) return;
+
+    deleteMutation.mutate(stockToDelete.id, {
+      onSuccess: () => {
+        setShowDeleteDialog(false);
+        setStockToDelete(null);
       }
     });
   };
@@ -210,22 +239,30 @@ export default function Stock() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Purchase Price (₹)</Label>
+                  <Label>
+                    Purchase Price (₹) <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     type="number"
+                    step="0.01"
                     value={purchasePrice}
                     onChange={(e) => setPurchasePrice(e.target.value)}
-                    placeholder="0"
+                    placeholder="Enter cost price"
                     className="input-field"
+                    required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Required for cost analytics
+                  </p>
                 </div>
                 <div>
                   <Label>Selling Price (₹)</Label>
                   <Input
                     type="number"
+                    step="0.01"
                     value={sellingPrice}
                     onChange={(e) => setSellingPrice(e.target.value)}
-                    placeholder="0"
+                    placeholder="Enter selling price"
                     className="input-field"
                   />
                 </div>
@@ -328,6 +365,10 @@ export default function Stock() {
                                 setUpdateType(type);
                                 setShowUpdateDialog(true);
                               }}
+                              onDelete={() => {
+                                setStockToDelete({ id: item.id, name: item.product_name });
+                                setShowDeleteDialog(true);
+                              }}
                             />
                           ))}
                         </div>
@@ -392,16 +433,50 @@ export default function Stock() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Stock Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{stockToDelete?.name}</strong>? 
+              This will also delete all associated transaction history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStockToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStock}
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function StockItem({ 
   item, 
-  onUpdate 
+  onUpdate,
+  onDelete
 }: { 
   item: any; 
   onUpdate: (type: "purchase" | "use") => void;
+  onDelete: () => void;
 }) {
   const isLowStock = item.closing_stock <= item.low_stock_threshold;
   
@@ -432,6 +507,9 @@ function StockItem({
         </Button>
         <Button size="sm" variant="outline" onClick={() => onUpdate("use")}>
           <Minus className="h-4 w-4" />
+        </Button>
+        <Button size="sm" variant="outline" onClick={onDelete} className="text-destructive hover:text-destructive">
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>

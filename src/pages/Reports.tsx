@@ -9,19 +9,33 @@ import { format, startOfWeek, startOfMonth } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { getAllDailyCashFlow as getFirebaseDailyCashFlow } from "@/integrations/firebase/client";
+
+// Check which backend to use
+const USE_FIREBASE = import.meta.env.VITE_USE_FIREBASE === 'true';
 
 export default function Reports() {
   const [filterType, setFilterType] = useState("monthly");
 
   const { data: dailyCashFlowData, isLoading } = useQuery({
-    queryKey: ["daily-cash-flow-all"],
+    queryKey: ["daily-cash-flow-all", USE_FIREBASE ? 'firebase' : 'supabase'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("daily_cash_flow")
-        .select("*")
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (USE_FIREBASE) {
+        const data = await getFirebaseDailyCashFlow();
+        return data
+          .map(d => ({
+            ...d,
+            created_at: d.created_at?.toDate().toISOString() || new Date().toISOString(),
+          }))
+          .sort((a, b) => b.date.localeCompare(a.date));
+      } else {
+        const { data, error } = await supabase
+          .from("daily_cash_flow")
+          .select("*")
+          .order("date", { ascending: false });
+        if (error) throw error;
+        return data;
+      }
     },
   });
 
