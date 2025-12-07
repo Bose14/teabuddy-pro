@@ -2,22 +2,23 @@ import { useState } from "react";
 import { StatsCard } from "@/components/StatsCard";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useDashboardStats } from "@/hooks/useDailyCashFlow";
 import { AlertBadge } from "@/components/AlertBadge";
 import { AnalyticsCharts } from "@/components/AnalyticsCharts";
-
-type TimePeriod = "today" | "weekly" | "monthly" | "overall";
+import { DashboardFilter, FilterPeriod } from "@/components/DashboardFilter";
 
 export default function Dashboard() {
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("today");
-  const { data: stats, isLoading } = useDashboardStats();
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+  const [period, setPeriod] = useState<FilterPeriod>("today");
+  
+  const { data: stats, isLoading } = useDashboardStats(startDate, endDate);
+
+  const handleFilterChange = (start: string | null, end: string | null, filterPeriod: FilterPeriod) => {
+    setStartDate(start);
+    setEndDate(end);
+    setPeriod(filterPeriod);
+  };
 
   if (isLoading) {
     return (
@@ -42,48 +43,17 @@ export default function Dashboard() {
     );
   }
 
-  // Get current period data
-  const getCurrentData = () => {
-    switch (selectedPeriod) {
-      case "today":
-        return stats.today || { sales: 0, expenses: 0, profit: 0 };
-      case "weekly":
-        return stats.weekly;
-      case "monthly":
-        return stats.monthly;
-      case "overall":
-        return stats.overall;
-    }
-  };
-
-  const currentData = getCurrentData();
-  const periodLabel = {
-    today: "Today",
-    weekly: "This Week",
-    monthly: "This Month",
-    overall: "Overall",
-  }[selectedPeriod];
+  const currentData = stats?.current || { sales: 0, expenses: 0, profit: 0, cashSales: 0, onlineSales: 0 };
+  const periodLabel = stats?.periodLabel || "Today";
+  const isToday = period === "today";
 
   return (
     <div className="lg:ml-64 p-4 mt-16 lg:p-6 space-y-6 safe-bottom">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header with Period Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Header with Filter */}
+        <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          
-          <div className="w-full sm:w-64">
-            <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as TimePeriod)}>
-              <SelectTrigger className="h-11 text-base">
-                <SelectValue placeholder="Select period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">📅 Today</SelectItem>
-                <SelectItem value="weekly">📊 This Week</SelectItem>
-                <SelectItem value="monthly">📈 This Month</SelectItem>
-                <SelectItem value="overall">🌍 Overall</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <DashboardFilter onFilterChange={handleFilterChange} />
         </div>
 
         {/* Main Statistics Cards */}
@@ -112,7 +82,7 @@ export default function Dashboard() {
         </section>
 
         {/* Today's Detailed Breakdown - Only show when Today is selected */}
-        {selectedPeriod === "today" && stats.today && (
+        {isToday && stats?.today && (
           <section>
             <h2 className="text-xl font-semibold mb-4 text-muted-foreground">Today's Details</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -173,8 +143,8 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Period Summary Breakdown - Show for Week/Month/Overall */}
-        {selectedPeriod !== "today" && (
+        {/* Period Summary Breakdown - Show for non-today periods */}
+        {!isToday && (
           <section>
             <h2 className="text-xl font-semibold mb-4 text-muted-foreground">{periodLabel} Breakdown</h2>
             <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
@@ -204,7 +174,7 @@ export default function Dashboard() {
         )}
 
         {/* No Data Message for Today */}
-        {selectedPeriod === "today" && !stats.today && (
+        {isToday && !stats?.today && (
           <AlertBadge 
             type="info" 
             message="No data for today yet. Go to Daily Entry to add today's cash flow." 

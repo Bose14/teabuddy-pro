@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MonthYearFilter } from "@/components/MonthYearFilter";
 import {
   Select,
   SelectContent,
@@ -49,8 +50,13 @@ export default function Expenses() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   // Date range for table
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+
+  const handleFilterChange = (start: string | null, end: string | null) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
 
   // Form state
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -60,7 +66,10 @@ export default function Expenses() {
   const [vendorName, setVendorName] = useState("");
   const [notes, setNotes] = useState("");
 
-  const { data: expenses, isLoading } = useExpenses(startDate, endDate);
+  const { data: expenses, isLoading } = useExpenses(
+    startDate || format(new Date(0), "yyyy-MM-dd"),
+    endDate || format(new Date(), "yyyy-MM-dd")
+  );
   const { data: stats } = useExpenseStats();
   const addMutation = useAddExpense();
   const deleteMutation = useDeleteExpense();
@@ -115,11 +124,6 @@ export default function Expenses() {
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
-  };
-
-  const setThisMonth = () => {
-    setStartDate(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-    setEndDate(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   };
 
   const getPaymentBadge = (method: string) => {
@@ -336,31 +340,10 @@ export default function Expenses() {
         </Card>
       </div>
 
-      {/* Date Range Filter */}
+      {/* Month/Year Filter */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <Label className="text-sm font-medium">Filter by:</Label>
-            <div className="flex gap-2 flex-wrap items-center">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-[160px]"
-              />
-              <span className="text-muted-foreground text-sm">to</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-[160px]"
-              />
-              <Button onClick={setThisMonth} variant="outline" size="sm">
-                <Calendar className="h-4 w-4 mr-2" />
-                This Month
-              </Button>
-            </div>
-          </div>
+          <MonthYearFilter onFilterChange={handleFilterChange} />
         </CardContent>
       </Card>
 
@@ -373,7 +356,7 @@ export default function Expenses() {
           {isLoading ? (
             <p className="text-center py-8">Loading...</p>
           ) : expenses && expenses.length > 0 ? (
-            <div className="overflow-x-auto rounded-md border">
+            <div className="max-h-[600px] overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>

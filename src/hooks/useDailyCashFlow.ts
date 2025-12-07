@@ -89,7 +89,7 @@ export function useDailyCashFlowRange(startDate: string, endDate: string) {
   });
 }
 
-export function useDashboardStats() {
+export function useDashboardStats(filterStartDate?: string | null, filterEndDate?: string | null) {
   const today = format(new Date(), "yyyy-MM-dd");
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
@@ -97,7 +97,7 @@ export function useDashboardStats() {
   const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
   return useQuery({
-    queryKey: ["dashboard-stats", today, monthStart, USE_FIREBASE ? 'firebase' : 'supabase'],
+    queryKey: ["dashboard-stats", today, monthStart, filterStartDate, filterEndDate, USE_FIREBASE ? 'firebase' : 'supabase'],
     queryFn: async () => {
       if (USE_FIREBASE) {
         // Get all data from Firebase
@@ -114,6 +114,15 @@ export function useDashboardStats() {
         const weekData = allData.filter(e => e.date >= weekStart && e.date <= weekEnd);
         const monthData = allData.filter(e => e.date >= monthStart && e.date <= monthEnd);
 
+        // Filter for custom range if provided
+        let customData = allData;
+        if (filterStartDate && filterEndDate) {
+          customData = allData.filter(e => e.date >= filterStartDate && e.date <= filterEndDate);
+        } else if (filterStartDate === null && filterEndDate === null) {
+          // Overall - use all data
+          customData = allData;
+        }
+
         const sumData = (data: DailyCashFlow[]) => ({
           sales: data.reduce((acc, d) => acc + Number(d.daily_sales || 0), 0),
           expenses: data.reduce((acc, d) => acc + Number(d.total_expenses || 0), 0),
@@ -121,6 +130,23 @@ export function useDashboardStats() {
           cashSales: data.reduce((acc, d) => acc + Number(d.cash_sales || 0), 0),
           onlineSales: data.reduce((acc, d) => acc + Number(d.online_sales || 0), 0),
         });
+
+        // Determine period label
+        let periodLabel = "Today";
+        if (filterStartDate && filterEndDate) {
+          if (filterStartDate === filterEndDate && filterStartDate === today) {
+            periodLabel = "Today";
+          } else if (filterStartDate === weekStart && filterEndDate === weekEnd) {
+            periodLabel = "This Week";
+          } else if (filterStartDate === monthStart && filterEndDate === monthEnd) {
+            periodLabel = "This Month";
+          } else {
+            const startMonth = format(new Date(filterStartDate), "MMMM yyyy");
+            periodLabel = startMonth;
+          }
+        } else if (filterStartDate === null && filterEndDate === null) {
+          periodLabel = "Overall";
+        }
 
         return {
           today: todayData ? {
@@ -136,6 +162,8 @@ export function useDashboardStats() {
           weekly: sumData(weekData),
           monthly: sumData(monthData),
           overall: sumData(allData),
+          current: sumData(customData),
+          periodLabel,
         };
       } else {
         // Get today's data
@@ -164,6 +192,20 @@ export function useDashboardStats() {
           .from("daily_cash_flow")
           .select("*");
 
+        // Get custom range data if provided
+        let customData = allData;
+        if (filterStartDate && filterEndDate) {
+          const { data } = await supabase
+            .from("daily_cash_flow")
+            .select("*")
+            .gte("date", filterStartDate)
+            .lte("date", filterEndDate);
+          customData = data;
+        } else if (filterStartDate === null && filterEndDate === null) {
+          // Overall - use all data
+          customData = allData;
+        }
+
         const sumData = (data: DailyCashFlow[] | null) => ({
           sales: data?.reduce((acc, d) => acc + Number(d.daily_sales || 0), 0) || 0,
           expenses: data?.reduce((acc, d) => acc + Number(d.total_expenses || 0), 0) || 0,
@@ -171,6 +213,23 @@ export function useDashboardStats() {
           cashSales: data?.reduce((acc, d) => acc + Number(d.cash_sales || 0), 0) || 0,
           onlineSales: data?.reduce((acc, d) => acc + Number(d.online_sales || 0), 0) || 0,
         });
+
+        // Determine period label
+        let periodLabel = "Today";
+        if (filterStartDate && filterEndDate) {
+          if (filterStartDate === filterEndDate && filterStartDate === today) {
+            periodLabel = "Today";
+          } else if (filterStartDate === weekStart && filterEndDate === weekEnd) {
+            periodLabel = "This Week";
+          } else if (filterStartDate === monthStart && filterEndDate === monthEnd) {
+            periodLabel = "This Month";
+          } else {
+            const startMonth = format(new Date(filterStartDate), "MMMM yyyy");
+            periodLabel = startMonth;
+          }
+        } else if (filterStartDate === null && filterEndDate === null) {
+          periodLabel = "Overall";
+        }
 
         return {
           today: todayData ? {
@@ -186,6 +245,8 @@ export function useDashboardStats() {
           weekly: sumData(weekData),
           monthly: sumData(monthData),
           overall: sumData(allData),
+          current: sumData(customData),
+          periodLabel,
         };
       }
     },

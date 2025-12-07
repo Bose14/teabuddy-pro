@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { format, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MonthYearFilter } from "@/components/MonthYearFilter";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useDailyCashFlow, useDailyCashFlowRange, useSaveDailyEntry, useDeleteDailyEntry } from "@/hooks/useDailyCashFlow";
+import { useAddExpense } from "@/hooks/useExpenses";
 import { AlertBadge } from "@/components/AlertBadge";
 import { Loader2, Plus, Calendar, IndianRupee, Smartphone, Wallet, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
@@ -43,8 +46,13 @@ export default function DailyEntry() {
   const [deleteDate, setDeleteDate] = useState<string | null>(null);
   
   // Date range for table
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+
+  const handleFilterChange = (start: string | null, end: string | null) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
 
   // Form state
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -53,12 +61,17 @@ export default function DailyEntry() {
   const [onlineSales, setOnlineSales] = useState("");
   const [closingCash, setClosingCash] = useState("");
   const [notes, setNotes] = useState("");
+  const [recordMismatchAsExpense, setRecordMismatchAsExpense] = useState(false);
 
-  const { data: entries, isLoading } = useDailyCashFlowRange(startDate, endDate);
+  const { data: entries, isLoading } = useDailyCashFlowRange(
+    startDate || format(new Date(0), "yyyy-MM-dd"), 
+    endDate || format(new Date(), "yyyy-MM-dd")
+  );
   const { data: todayData } = useDailyCashFlow(date);
   const { data: yesterdayData } = useDailyCashFlow(format(subDays(new Date(date), 1), "yyyy-MM-dd"));
   const saveMutation = useSaveDailyEntry();
   const deleteMutation = useDeleteDailyEntry();
+  const addExpenseMutation = useAddExpense();
 
   // Calculate summary stats
   const totalSales = entries?.reduce((acc, e) => acc + Number(e.daily_sales || 0), 0) || 0;
@@ -79,6 +92,8 @@ export default function DailyEntry() {
   const dailySales = closingCashNum + onlineSalesNum + totalExpensesForDate - yesterdayCashNum;
   const dailyProfit = dailySales - totalExpensesForDate;
   const cashMismatch = closingCashNum > 0 && Math.abs(closingCashNum - expectedClosingCash) > 0.01;
+  const cashDifference = expectedClosingCash - closingCashNum;
+  const showMismatchToggle = closingCashNum > 0 && cashDifference > 0.01;
 
   const handleOpenDialog = (dateToEdit?: string) => {
     if (dateToEdit) {
@@ -107,6 +122,7 @@ export default function DailyEntry() {
     setOnlineSales("");
     setClosingCash("");
     setNotes("");
+    setRecordMismatchAsExpense(false);
     // Auto-fill yesterday's cash
     if (yesterdayData) {
       setYesterdayCash(yesterdayData.closing_cash.toString());
@@ -115,22 +131,40 @@ export default function DailyEntry() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveMutation.mutate({
-      date,
-      yesterday_cash: yesterdayCashNum,
-      cash_sales: cashSalesNum,
-      online_sales: onlineSalesNum,
-      closing_cash: closingCashNum,
-      notes: notes || undefined,
-    }, {
-      onSuccess: () => {
-        setShowDialog(false);
-        setEditingDate(null);
-        resetForm();
+    
+    try {
+      // Step 1: Save daily entry
+      await saveMutation.mutateAsync({
+        date,
+        yesterday_cash: yesterdayCashNum,
+        cash_sales: cashSalesNum,
+        online_sales: onlineSalesNum,
+        closing_cash: closingCashNum,
+        notes: notes || undefined,
+      });
+
+      // Step 2: If mismatch toggle is checked, create expense
+      if (recordMismatchAsExpense && showMismatchToggle) {
+        await addExpenseMutation.mutateAsync({
+          date: date,
+          expense_type: "Others",
+          amount: cashDifference,
+          payment_method: "Cash",
+          notes: "Cash difference adjustment",
+          is_salary_payment: false,
+        });
       }
-    });
+
+      // Step 3: Close dialog and reset
+      setShowDialog(false);
+      setEditingDate(null);
+      resetForm();
+    } catch (error) {
+      // Error handling is done by the mutations
+      console.error("Error saving entry:", error);
+    }
   };
 
   const handleDelete = (dateToDelete: string) => {
@@ -139,11 +173,6 @@ export default function DailyEntry() {
         setDeleteDate(null);
       }
     });
-  };
-
-  const setThisMonth = () => {
-    setStartDate(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-    setEndDate(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   };
 
   const getStatusBadge = (entry: any) => {
@@ -251,6 +280,25 @@ export default function DailyEntry() {
                 />
               )}
 
+              {/* Cash Mismatch Toggle - Only show when counted < expected */}
+              {showMismatchToggle && (
+                <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                  <Checkbox
+                    id="record-mismatch"
+                    checked={recordMismatchAsExpense}
+                    onCheckedChange={(checked) => 
+                      setRecordMismatchAsExpense(checked as boolean)
+                    }
+                  />
+                  <label 
+                    htmlFor="record-mismatch" 
+                    className="text-sm cursor-pointer leading-tight"
+                  >
+                    Record ₹{cashDifference.toLocaleString("en-IN")} difference as expense (Others category)
+                  </label>
+                </div>
+              )}
+
               {/* Auto Calculated Summary */}
               <div className="p-4 bg-secondary rounded-lg space-y-2">
                 <p className="font-semibold mb-2">Summary (Auto-Calculated)</p>
@@ -351,31 +399,10 @@ export default function DailyEntry() {
         </Card>
       </div>
 
-      {/* Date Range Filter */}
+      {/* Month/Year Filter */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <Label className="text-sm font-medium">Filter by:</Label>
-            <div className="flex gap-2 flex-wrap items-center">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-[160px]"
-              />
-              <span className="text-muted-foreground text-sm">to</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-[160px]"
-              />
-              <Button onClick={setThisMonth} variant="outline" size="sm">
-                <Calendar className="h-4 w-4 mr-2" />
-                This Month
-              </Button>
-            </div>
-          </div>
+          <MonthYearFilter onFilterChange={handleFilterChange} />
         </CardContent>
       </Card>
 
@@ -388,7 +415,7 @@ export default function DailyEntry() {
           {isLoading ? (
             <p className="text-center py-8">Loading...</p>
           ) : entries && entries.length > 0 ? (
-            <div className="overflow-x-auto rounded-md border">
+            <div className="max-h-[600px] overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
