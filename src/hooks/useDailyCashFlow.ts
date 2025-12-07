@@ -7,6 +7,7 @@ import {
   getDailyCashFlowByDate as getFirebaseDailyCashFlowByDate,
   createDailyCashFlow as createFirebaseDailyCashFlow,
   updateDailyCashFlow as updateFirebaseDailyCashFlow,
+  deleteDailyCashFlow as deleteFirebaseDailyCashFlow,
 } from "@/integrations/firebase/client";
 import {
   getAllExpenses as getFirebaseExpenses,
@@ -362,17 +363,22 @@ export function useDeleteDailyEntry() {
 
   return useMutation({
     mutationFn: async (date: string) => {
-      const { error } = await supabase
-        .from("daily_cash_flow")
-        .delete()
-        .eq("date", date);
-      
-      if (error) throw error;
+      if (USE_FIREBASE) {
+        await deleteFirebaseDailyCashFlow(date);
+      } else {
+        const { error } = await supabase
+          .from("daily_cash_flow")
+          .delete()
+          .eq("date", date);
+        
+        if (error) throw error;
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["daily-cash-flow"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      toast.success("Daily entry deleted!");
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Daily entry and all related expenses deleted successfully!");
     },
     onError: (error) => {
       toast.error("Failed to delete: " + error.message);

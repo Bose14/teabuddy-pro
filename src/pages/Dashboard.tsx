@@ -53,7 +53,10 @@ export default function Dashboard() {
         {/* Header with Filter */}
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <DashboardFilter onFilterChange={handleFilterChange} />
+          <DashboardFilter 
+            selectedPeriod={period}
+            onFilterChange={handleFilterChange} 
+          />
         </div>
 
         {/* Main Statistics Cards */}

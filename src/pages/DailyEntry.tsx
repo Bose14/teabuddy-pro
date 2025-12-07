@@ -464,9 +464,16 @@ export default function DailyEntry() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Daily Entry?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This will delete the cash flow entry for <strong>{format(new Date(entry.date), "dd MMM yyyy")}</strong>.
+                                  This will permanently delete the cash flow entry for <strong>{format(new Date(entry.date), "dd MMM yyyy")}</strong>.
                                   <br /><br />
-                                  <strong>Note:</strong> Expenses recorded for this day will NOT be deleted.
+                                  <strong className="text-destructive">Warning:</strong> This will also delete:
+                                  <ul className="list-disc list-inside mt-2 space-y-1">
+                                    <li>All expenses recorded for this date</li>
+                                    <li>Any salary payments made on this date</li>
+                                    <li>Associated salary payment records from employee history</li>
+                                  </ul>
+                                  <br />
+                                  <strong>This action cannot be undone.</strong>
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -475,7 +482,7 @@ export default function DailyEntry() {
                                   onClick={() => handleDelete(entry.date)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Delete Entry
+                                  Delete Everything
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>

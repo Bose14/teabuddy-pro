@@ -124,6 +124,76 @@ export const updateDailyCashFlow = async (id: string, data: Partial<DailyCashFlo
   });
 };
 
+export const deleteDailyCashFlow = async (date: string): Promise<void> => {
+  // Find the daily cash flow entry for this date
+  const cashFlowEntry = await getDailyCashFlowByDate(date);
+  if (!cashFlowEntry) throw new Error('Daily cash flow entry not found');
+  
+  // Get all expenses for this date
+  const expenses = await getExpensesByDate(date);
+  
+  // Use batch to delete everything atomically
+  const batch = writeBatch(db);
+  
+  // Delete the daily cash flow entry
+  batch.delete(doc(db, COLLECTIONS.DAILY_CASH_FLOW, cashFlowEntry.id));
+  
+  // Delete all expenses for this date
+  expenses.forEach(expense => {
+    batch.delete(doc(db, COLLECTIONS.EXPENSES, expense.id));
+    
+    // If it's a salary payment, also delete the salary_payment record
+    if (expense.is_salary_payment && expense.employee_id) {
+      // Note: We'll handle salary payment deletion in a separate transaction
+      // since we need to query for it first
+    }
+  });
+  
+  await batch.commit();
+  
+  // Handle salary payment cascade deletions separately
+  for (const expense of expenses) {
+    if (expense.is_salary_payment && expense.employee_id) {
+      const salaryPaymentsQuery = query(
+        collection(db, COLLECTIONS.SALARY_PAYMENTS),
+        where('employee_id', '==', expense.employee_id),
+        where('amount', '==', expense.amount),
+        orderBy('created_at', 'desc'),
+        limit(5)
+      );
+      
+      const salaryPaymentsSnapshot = await getDocs(salaryPaymentsQuery);
+      const expenseTime = expense.created_at.toMillis();
+      
+      const matchingPayment = salaryPaymentsSnapshot.docs.find(paymentDoc => {
+        const paymentTime = paymentDoc.data().created_at.toMillis();
+        const timeDiff = Math.abs(expenseTime - paymentTime);
+        return timeDiff < 5000; // Within 5 seconds
+      });
+      
+      if (matchingPayment) {
+        const paymentData = matchingPayment.data() as SalaryPayment;
+        
+        // Delete the salary_payment record
+        await deleteDoc(doc(db, COLLECTIONS.SALARY_PAYMENTS, matchingPayment.id));
+        
+        // If it was an advance, reverse it from employee's advance_given
+        if (paymentData.payment_type === 'Advance') {
+          const employeeDoc = await getDoc(doc(db, COLLECTIONS.EMPLOYEES, expense.employee_id));
+          if (employeeDoc.exists()) {
+            const employee = employeeDoc.data() as Employee;
+            const newAdvance = Math.max(0, Number(employee.advance_given) - Number(expense.amount));
+            await updateDoc(doc(db, COLLECTIONS.EMPLOYEES, expense.employee_id), {
+              advance_given: newAdvance,
+              updated_at: serverTimestamp(),
+            });
+          }
+        }
+      }
+    }
+  }
+};
+
 // ========== EXPENSES ==========
 
 export const getExpensesByDate = async (date: string): Promise<Expense[]> => {
